@@ -13,16 +13,24 @@
 #include <vector>
 #include <string>
 
-NS_LOG_COMPONENT_DEFINE ("myStart");
+NS_LOG_COMPONENT_DEFINE ("AdhocSetup");
 
 using namespace ns3;
 
+void ReceivePacket (Ptr<Socket> socket){
+  NS_LOG_UNCOND ("Received one packet!");
+}
+
 int int main(int argc, char const *argv[]){
 	std::string phyMode ("DsssRate11Mbps");
+	int packetSize = 1000; // bytes
+	int numPackets = 1;
+	Time interPacketInterval = Seconds (1.0);
 	int numNodes = 25;
 	uint32_t sourceNode = 24;
 	//sink node is MBS node 0
 	double distance = 150; // m
+
 
 	NodeContainer nc;
 	nc.create(numNodes);
@@ -111,13 +119,20 @@ int int main(int argc, char const *argv[]){
 	Ptr<Socket> recvSink = Socket::CreateSocket (nc.Get(0), tid);
 	InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), 80);
 	recvSink->Bind (local);
-	//recvSink->SetRecvCallback (MakeCallback (&ReceivePacket));
+	recvSink->SetRecvCallback (MakeCallback (&ReceivePacket));
 
 	Ptr<Socket> source = Socket::CreateSocket (nc.Get (sourceNode), tid);
 	InetSocketAddress remote = InetSocketAddress (ifcont.GetAddress (sinkNode, 0), 80);
 	source->Connect (remote);
 
 
+	Simulator::Schedule (Seconds (30.0), &GenerateTraffic, 
+			source, packetSize, numPackets, interPacketInterval);
+
+
+	Simulator::Stop (Seconds (32.0));
+	Simulator::Run ();
+	Simulator::Destroy ();
 
 
 	return 0;
