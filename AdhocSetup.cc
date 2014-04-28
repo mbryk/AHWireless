@@ -21,19 +21,35 @@ void ReceivePacket (Ptr<Socket> socket){
   NS_LOG_UNCOND ("Received one packet!");
 }
 
-int int main(int argc, char const *argv[]){
+static void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize, 
+                             uint32_t pktCount, Time pktInterval )
+{
+  if (pktCount > 0)
+    {
+      socket->Send (Create<Packet> (pktSize));
+      Simulator::Schedule (pktInterval, &GenerateTraffic, 
+                           socket, pktSize,pktCount-1, pktInterval);
+    }
+  else
+    {
+      socket->Close ();
+    }
+}
+
+int main(int argc, char const *argv[]){
 	std::string phyMode ("DsssRate11Mbps");
 	int packetSize = 1000; // bytes
 	int numPackets = 1;
 	Time interPacketInterval = Seconds (1.0);
 	int numNodes = 25;
 	uint32_t sourceNode = 24;
+	uint32_t sinkNode = 0;
 	//sink node is MBS node 0
 	double distance = 150; // m
 
 
 	NodeContainer nc;
-	nc.create(numNodes);
+	nc.Create(numNodes);
 
 	WifiHelper wifi;
 	wifi.EnableLogComponents ();
@@ -116,7 +132,7 @@ int int main(int argc, char const *argv[]){
 	//
 
 	TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
-	Ptr<Socket> recvSink = Socket::CreateSocket (nc.Get(0), tid);
+	Ptr<Socket> recvSink = Socket::CreateSocket (nc.Get(sinkNode), tid);
 	InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), 80);
 	recvSink->Bind (local);
 	recvSink->SetRecvCallback (MakeCallback (&ReceivePacket));
