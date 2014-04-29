@@ -25,7 +25,7 @@ void ReceivePacket (Ptr<Socket> socket){
 }
 
 static void printStuff(AodvHelper aodv, Ptr<OutputStreamWrapper> routingStream){
-	aodv.PrintRoutingTableAllAt (Seconds (8.0), routingStream);
+	aodv.PrintRoutingTableAllAt (Seconds (200.0), routingStream);
 }
 
 static void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize, 
@@ -61,11 +61,11 @@ int main(int argc, char const *argv[]){
 	int packetSize = 1000; // bytes
 	int numPackets = 1;
 	Time interPacketInterval = Seconds (1.0);
-	int numNodes = 25;
-	uint32_t sourceNode = 24;
+	int numNodes = 10;
+	uint32_t sourceNode = numNodes-1;
 	uint32_t sinkNode = 0;
 	//sink node is MBS node 0
-	double distance = 60; // m
+	double distance = 100; // m
 
 
 	NodeContainer nc;
@@ -123,10 +123,11 @@ int main(int argc, char const *argv[]){
 	                             "MinY", DoubleValue (-750.0),
 	                             "DeltaX", DoubleValue (distance),
 	                             "DeltaY", DoubleValue (distance),
-	                             "GridWidth", UintegerValue (5),
+	                             "GridWidth", UintegerValue (3),
 	                             "LayoutType", StringValue ("RowFirst"));
-	mobilityUsers.SetMobilityModel("ns3::RandomWalk2dMobilityModel",
-		"Bounds", RectangleValue(Rectangle(-1000, 1000, -1000, 1000)));
+	mobilityUsers.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+	//mobilityUsers.SetMobilityModel("ns3::RandomWalk2dMobilityModel",
+	//	"Bounds", RectangleValue(Rectangle(-1000, 1000, -1000, 1000)));
 	for (int i = 1; i < numNodes; i++)
 		mobilityUsers.Install(nc.Get(i));
 
@@ -181,7 +182,7 @@ int main(int argc, char const *argv[]){
 			source, packetSize, numPackets, interPacketInterval, aodv);
 
 
-	Simulator::Schedule(Seconds(100.0), &printStuff, aodv, routingStream);
+	Simulator::Schedule(Seconds(10.0), &printStuff, aodv, routingStream);
 
 	Simulator::Stop (Seconds (300.0));
 	Simulator::Run ();
