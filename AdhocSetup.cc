@@ -5,6 +5,9 @@
 #include "ns3/wifi-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/olsr-helper.h"
+#include "ns3/aodv-helper.h"
+#include "ns3/aodv-rtable.h"
+#include "ns3/aodv-routing-protocol.h"
 #include "ns3/ipv4-static-routing-helper.h"
 #include "ns3/ipv4-list-routing-helper.h"
 
@@ -21,14 +24,31 @@ void ReceivePacket (Ptr<Socket> socket){
   NS_LOG_UNCOND ("Received one packet!");
 }
 
+static void printStuff(AodvHelper aodv, Ptr<OutputStreamWrapper> routingStream){
+	aodv.PrintRoutingTableAllAt (Seconds (8.0), routingStream);
+}
+
 static void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize, 
-                             uint32_t pktCount, Time pktInterval )
+                             uint32_t pktCount, Time pktInterval, AodvHelper aodv )
 {
+
+	for (int i = 1; i < 24; i++){
+		//Ptr<GlobalRouter> rtr = nc.Get(i)->GetObject<GlobalRouter> ();
+		//NS_LOG_UNCOND("MYDATA:");
+		//NS_LOG_UNCOND(rtr->GetRouterId());
+		//Ipv4Address ia = Ipv4Address();
+		//if (rtr)
+		//rtr->GetRouterId();
+		//ia.Print(std::cout);
+
+
+	}
+
   if (pktCount > 0)
     {
       socket->Send (Create<Packet> (pktSize));
       Simulator::Schedule (pktInterval, &GenerateTraffic, 
-                           socket, pktSize,pktCount-1, pktInterval);
+                           socket, pktSize,pktCount-1, pktInterval, aodv);
     }
   else
     {
@@ -45,14 +65,14 @@ int main(int argc, char const *argv[]){
 	uint32_t sourceNode = 24;
 	uint32_t sinkNode = 0;
 	//sink node is MBS node 0
-	double distance = 150; // m
+	double distance = 60; // m
 
 
 	NodeContainer nc;
 	nc.Create(numNodes);
 
 	WifiHelper wifi;
-	wifi.EnableLogComponents ();
+	//wifi.EnableLogComponents();
 	wifi.SetStandard (WIFI_PHY_STANDARD_80211b);
 	wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
                                 "DataMode",StringValue (phyMode),
@@ -62,9 +82,9 @@ int main(int argc, char const *argv[]){
 	YansWifiChannelHelper wifiChannel;
 	wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
 	//wifiChannel.AddPropagationLoss ("ns3::FriisPropagationLossModel");
-	//wifiChannel.AddPropagationLoss ("ns3::LogDistancePropagationLossModel");
+	wifiChannel.AddPropagationLoss ("ns3::LogDistancePropagationLossModel");
 	//wifiChannel.AddPropagationLoss ("ns3::FixedRssLossModel");
-	wifiChannel.AddPropagationLoss ("ns3::BuildingsPropagationLossModel");
+	//wifiChannel.AddPropagationLoss ("ns3::BuildingsPropagationLossModel");
 	//wifiChannel.SetNext("ns3::LogDistancePropagationLossModel");
 
 
@@ -110,15 +130,16 @@ int main(int argc, char const *argv[]){
 	for (int i = 1; i < numNodes; i++)
 		mobilityUsers.Install(nc.Get(i));
 
-	
 
 	OlsrHelper olsr;
+	AodvHelper aodv;
 
 	Ipv4ListRoutingHelper list;
-	list.Add (olsr, 10);
+	//list.Add (olsr, 10);
+	list.Add (aodv, 10);
 
 	InternetStackHelper internet;
-	internet.SetRoutingHelper (list);
+	internet.SetRoutingHelper (aodv);
 	internet.Install (nc);
 
 	Ipv4AddressHelper ipv4;
@@ -126,6 +147,20 @@ int main(int argc, char const *argv[]){
 	ipv4.SetBase ("10.1.1.0", "255.255.255.0");
 	Ipv4InterfaceContainer ifcont = ipv4.Assign (devices);
 
+
+	Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> ("aodv.routes0", std::ios::out);
+  	
+	//Ptr<Ipv4> Ptripv4 = nc.Get(1)->GetObject<Ipv4> ();
+	//NS_ASSERT_MSG (Ptripv4, "Ipv4 not installed on node");
+	//Ptr<Ipv4RoutingProtocol> proto = Ptripv4->GetRoutingProtocol ();
+	//NS_ASSERT_MSG (proto, "Ipv4 routing not installed on node");
+	//Ptr<aodv::RoutingProtocol> aodv1 = DynamicCast<aodv::RoutingProtocol> (proto);
+
+//  	aodv.PrintRoutingTableAllAt (Seconds (270.0), routingStream);
+  	//aodv.RoutingTable.Print( routingStream);
+
+	//aodv::RoutingTable rt = aodv1->m_routingTable;
+	//rt.Print(routingStream);
 
 	//
 	// Application:
@@ -143,10 +178,12 @@ int main(int argc, char const *argv[]){
 
 
 	Simulator::Schedule (Seconds (30.0), &GenerateTraffic, 
-			source, packetSize, numPackets, interPacketInterval);
+			source, packetSize, numPackets, interPacketInterval, aodv);
 
 
-	Simulator::Stop (Seconds (32.0));
+	Simulator::Schedule(Seconds(100.0), &printStuff, aodv, routingStream);
+
+	Simulator::Stop (Seconds (300.0));
 	Simulator::Run ();
 	Simulator::Destroy ();
 
