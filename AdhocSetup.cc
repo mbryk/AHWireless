@@ -5,6 +5,7 @@
 #include "ns3/wifi-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/olsr-helper.h"
+#include "ns3/dsdv-helper.h"
 #include "ns3/aodv-helper.h"
 #include "ns3/aodv-rtable.h"
 #include "ns3/aodv-routing-protocol.h"
@@ -24,8 +25,8 @@ void ReceivePacket (Ptr<Socket> socket){
   NS_LOG_UNCOND ("Received one packet!");
 }
 
-static void printStuff(AodvHelper aodv, Ptr<OutputStreamWrapper> routingStream){
-	aodv.PrintRoutingTableAllAt (Seconds (300.0), routingStream);
+static void printStuff(DsdvHelper dsdv, Ptr<OutputStreamWrapper> routingStream){
+	dsdv.PrintRoutingTableAllAt (Seconds (300.0), routingStream);
 }
 
 static void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize, 
@@ -57,7 +58,7 @@ static void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize,
 }
 
 int main(int argc, char const *argv[]){
-	std::string phyMode ("DsssRate11Mbps");
+	std::string phyMode ("DsssRate1Mbps");
 	int packetSize = 1000; // bytes
 	int numPackets = 1;
 	Time interPacketInterval = Seconds (1.0);
@@ -134,12 +135,14 @@ int main(int argc, char const *argv[]){
 
 	OlsrHelper olsr;
 	AodvHelper aodv;
+	DsdvHelper dsdv;
 	Ipv4StaticRoutingHelper staticRouting;
 
 	Ipv4ListRoutingHelper list;
-	list.Add (staticRouting, 0);
-	list.Add (olsr, 20);
-	list.Add (aodv, 10);
+	//list.Add (staticRouting, 0);
+	//list.Add (olsr, 20);
+	//list.Add (aodv, 10);
+	list.Add (dsdv, 10);
 
 	InternetStackHelper internet;
 	internet.SetRoutingHelper (list);
@@ -193,7 +196,7 @@ int main(int argc, char const *argv[]){
 	}
 
 
-	Simulator::Schedule(Seconds(50.0), &printStuff, aodv, routingStream);
+	Simulator::Schedule(Seconds(50.0), &printStuff, dsdv, routingStream);
 
 	Simulator::Stop (Seconds (400.0));
 	Simulator::Run ();
