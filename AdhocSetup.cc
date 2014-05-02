@@ -25,7 +25,7 @@ void ReceivePacket (Ptr<Socket> socket){
 }
 
 static void printStuff(AodvHelper aodv, Ptr<OutputStreamWrapper> routingStream){
-	aodv.PrintRoutingTableAllAt (Seconds (200.0), routingStream);
+	aodv.PrintRoutingTableAllAt (Seconds (300.0), routingStream);
 }
 
 static void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize, 
@@ -65,7 +65,7 @@ int main(int argc, char const *argv[]){
 	uint32_t sourceNode = numNodes-1;
 	uint32_t sinkNode = 0;
 	//sink node is MBS node 0
-	double distance = 100; // m
+	double distance = 50; // m
 
 
 	NodeContainer nc;
@@ -119,11 +119,11 @@ int main(int argc, char const *argv[]){
 
 	MobilityHelper mobilityUsers;
 	mobilityUsers.SetPositionAllocator ("ns3::GridPositionAllocator",
-	                             "MinX", DoubleValue (-750.0),
-	                             "MinY", DoubleValue (-750.0),
+	                             "MinX", DoubleValue (-10.0),
+	                             "MinY", DoubleValue (0.0),
 	                             "DeltaX", DoubleValue (distance),
 	                             "DeltaY", DoubleValue (distance),
-	                             "GridWidth", UintegerValue (3),
+	                             "GridWidth", UintegerValue (20),
 	                             "LayoutType", StringValue ("RowFirst"));
 	mobilityUsers.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
 	//mobilityUsers.SetMobilityModel("ns3::RandomWalk2dMobilityModel",
@@ -134,13 +134,15 @@ int main(int argc, char const *argv[]){
 
 	OlsrHelper olsr;
 	AodvHelper aodv;
+	Ipv4StaticRoutingHelper staticRouting;
 
 	Ipv4ListRoutingHelper list;
-	//list.Add (olsr, 10);
+	list.Add (staticRouting, 0);
+	list.Add (olsr, 20);
 	list.Add (aodv, 10);
 
 	InternetStackHelper internet;
-	internet.SetRoutingHelper (aodv);
+	internet.SetRoutingHelper (list);
 	internet.Install (nc);
 
 	Ipv4AddressHelper ipv4;
@@ -149,7 +151,7 @@ int main(int argc, char const *argv[]){
 	Ipv4InterfaceContainer ifcont = ipv4.Assign (devices);
 
 
-	Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> ("aodv.routes0", std::ios::out);
+	Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> ("aodv.routes5", std::ios::out);
   	
 	//Ptr<Ipv4> Ptripv4 = nc.Get(1)->GetObject<Ipv4> ();
 	//NS_ASSERT_MSG (Ptripv4, "Ipv4 not installed on node");
@@ -173,18 +175,27 @@ int main(int argc, char const *argv[]){
 	recvSink->Bind (local);
 	recvSink->SetRecvCallback (MakeCallback (&ReceivePacket));
 
-	Ptr<Socket> source = Socket::CreateSocket (nc.Get (sourceNode), tid);
+	Ptr<Socket> sources[20];
 	InetSocketAddress remote = InetSocketAddress (ifcont.GetAddress (sinkNode, 0), 80);
-	source->Connect (remote);
+	for (int i = 1; i < numNodes; i++){
+		//Ptr<Socket> source = Socket::CreateSocket (nc.Get (sourceNode), tid);
+		sources[i-1] = Socket::CreateSocket (nc.Get (i), tid);
+		sources[i-1]->Connect (remote);
+	}
 
 
-	Simulator::Schedule (Seconds (30.0), &GenerateTraffic, 
-			source, packetSize, numPackets, interPacketInterval, aodv);
+	//Simulator::Schedule (Seconds (30.0), &GenerateTraffic, 
+	//		sources[numNodes-2], packetSize, numPackets, interPacketInterval, aodv);
+
+	for (int i = 1; i < numNodes; i++){
+		Simulator::Schedule(Seconds(50+(i*5)), &GenerateTraffic,
+			sources[i-1], packetSize, 1, interPacketInterval, aodv);
+	}
 
 
-	Simulator::Schedule(Seconds(10.0), &printStuff, aodv, routingStream);
+	Simulator::Schedule(Seconds(50.0), &printStuff, aodv, routingStream);
 
-	Simulator::Stop (Seconds (300.0));
+	Simulator::Stop (Seconds (400.0));
 	Simulator::Run ();
 	Simulator::Destroy ();
 
