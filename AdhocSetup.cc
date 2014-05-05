@@ -8,7 +8,9 @@
 #include "ns3/dsdv-helper.h"
 #include "ns3/aodv-helper.h"
 #include "ns3/aodv-rtable.h"
+#include "ns3/dsdv-rtable.h"
 #include "ns3/aodv-routing-protocol.h"
+#include "ns3/dsdv-routing-protocol.h"
 #include "ns3/ipv4-static-routing-helper.h"
 #include "ns3/ipv4-list-routing-helper.h"
 
@@ -58,14 +60,17 @@ static void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize,
 }
 
 int main(int argc, char const *argv[]){
+
+std::cout << "May 5, 2014" << std::endl;
+
+
 	std::string phyMode ("DsssRate1Mbps");
 	int packetSize = 1000; // bytes
 	int numPackets = 1;
 	Time interPacketInterval = Seconds (1.0);
 	int numNodes = 10;
 	uint32_t sourceNode = numNodes-1;
-	uint32_t sinkNode = 0;
-	//sink node is MBS node 0
+	uint32_t sinkNode = 0; //sink node is MBS node 0
 	double distance = 50; // m
 
 
@@ -145,7 +150,7 @@ int main(int argc, char const *argv[]){
 	list.Add (dsdv, 10);
 
 	InternetStackHelper internet;
-	internet.SetRoutingHelper (list);
+	internet.SetRoutingHelper (dsdv);
 	internet.Install (nc);
 
 	Ipv4AddressHelper ipv4;
@@ -156,16 +161,19 @@ int main(int argc, char const *argv[]){
 
 	Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> ("aodv.routes5", std::ios::out);
   	
-	//Ptr<Ipv4> Ptripv4 = nc.Get(1)->GetObject<Ipv4> ();
-	//NS_ASSERT_MSG (Ptripv4, "Ipv4 not installed on node");
-	//Ptr<Ipv4RoutingProtocol> proto = Ptripv4->GetRoutingProtocol ();
-	//NS_ASSERT_MSG (proto, "Ipv4 routing not installed on node");
-	//Ptr<aodv::RoutingProtocol> aodv1 = DynamicCast<aodv::RoutingProtocol> (proto);
+	Ptr<Ipv4> Ptripv4 = nc.Get(4)->GetObject<Ipv4> ();
+	NS_ASSERT_MSG (Ptripv4, "Ipv4 not installed on node");
+	Ptr<Ipv4RoutingProtocol> proto = Ptripv4->GetRoutingProtocol ();
+	NS_ASSERT_MSG (proto, "Ipv4 routing not installed on node");
+	Ptr<dsdv::RoutingProtocol> dsdv1 = DynamicCast<dsdv::RoutingProtocol> (proto);
 
-//  	aodv.PrintRoutingTableAllAt (Seconds (270.0), routingStream);
-  	//aodv.RoutingTable.Print( routingStream);
+	NS_ASSERT_MSG (dsdv1, "Ipv4 routing not installed on node");
 
-	//aodv::RoutingTable rt = aodv1->m_routingTable;
+  	//dsdv.PrintRoutingTableAllAt (Seconds (70.0), routingStream);
+  	//dsdv1.RoutingTable.Print( routingStream);
+  	dsdv1->PrintRoutingTable(routingStream);
+
+	//dsdv::RoutingTable rt = dsdv1->m_routingTable;
 	//rt.Print(routingStream);
 
 	//
@@ -191,14 +199,14 @@ int main(int argc, char const *argv[]){
 	//		sources[numNodes-2], packetSize, numPackets, interPacketInterval, aodv);
 
 	for (int i = 1; i < numNodes; i++){
-		Simulator::Schedule(Seconds(50+(i*5)), &GenerateTraffic,
+		Simulator::Schedule(Seconds(50+(i)), &GenerateTraffic,
 			sources[i-1], packetSize, 1, interPacketInterval, aodv);
 	}
 
 
-	Simulator::Schedule(Seconds(50.0), &printStuff, dsdv, routingStream);
+	//Simulator::Schedule(Seconds(50.0), &printStuff, dsdv, routingStream);
 
-	Simulator::Stop (Seconds (400.0));
+	Simulator::Stop (Seconds (100.0));
 	Simulator::Run ();
 	Simulator::Destroy ();
 
