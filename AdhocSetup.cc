@@ -6,10 +6,7 @@
 #include "ns3/internet-module.h"
 #include "ns3/olsr-helper.h"
 #include "ns3/dsdv-helper.h"
-#include "ns3/aodv-helper.h"
-#include "ns3/aodv-rtable.h"
 #include "ns3/dsdv-rtable.h"
-#include "ns3/aodv-routing-protocol.h"
 #include "ns3/dsdv-routing-protocol.h"
 #include "ns3/ipv4-static-routing-helper.h"
 #include "ns3/ipv4-list-routing-helper.h"
@@ -29,9 +26,16 @@ void ReceivePacket (Ptr<Socket> socket){
 }
 
 static void printStuff(Ptr<dsdv::RoutingProtocol> dsdv1,
+	Ptr<dsdv::RoutingProtocol> dsdv2,
 	Ptr<OutputStreamWrapper> routingStream,
 	Ipv4InterfaceContainer ifcont,
 	NodeContainer nc){
+
+
+/*
+	Ptr<Ipv4> Ptripv4_2 = nc.Get(6)->GetObject<Ipv4> ();
+	Ptr<Ipv4RoutingProtocol> proto2 = Ptripv4_2->GetRoutingProtocol ();
+	Ptr<dsdv::RoutingProtocol> dsdv2 = DynamicCast<dsdv::RoutingProtocol> (proto2);
 	//dsdv.PrintRoutingTableAllAt (Seconds (300.0), routingStream);
 
 	dsdv::RoutingTable rt = dsdv1->m_routingTable;
@@ -40,41 +44,93 @@ static void printStuff(Ptr<dsdv::RoutingProtocol> dsdv1,
 	Ptr<OutputStreamWrapper> routingStream2 = Create<OutputStreamWrapper> ("aodv.routes6", std::ios::out);
 	Ptr<OutputStreamWrapper> routingStream3 = Create<OutputStreamWrapper> ("aodv.routes7", std::ios::out);
 
-	Ipv4Address dst = ifcont.GetAddress (1, 0);
-	Ipv4Address dst2 = ifcont.GetAddress (6, 0);
+	dsdv::RoutingTable rt2 = dsdv2->m_routingTable;
+	rt2.Print(routingStream2);
 
-	rt.DeleteRoute(dst);
-	rt.DeleteRoute(dst2);
-	rt.Print(routingStream2);
+	Ipv4Address dst = ifcont.GetAddress (1, 0);
+	rt2.DeleteRoute(dst);
+	dst = ifcont.GetAddress (2, 0);
+	rt2.DeleteRoute(dst);
+	dst = ifcont.GetAddress (3, 0);
+	rt2.DeleteRoute(dst);
+	dst = ifcont.GetAddress (4, 0);
+	rt2.DeleteRoute(dst);
+	dst = ifcont.GetAddress (5, 0);
+	rt2.DeleteRoute(dst);
+	dst = ifcont.GetAddress (7, 0);
+	rt2.DeleteRoute(dst);
+	dst = ifcont.GetAddress (8, 0);
+	rt2.DeleteRoute(dst);
+	dst = ifcont.GetAddress (0, 0);
+	rt2.DeleteRoute(dst);
+
+	rt2.Print(routingStream2);
+
+	//dsdv1->NotifyInterfaceDown(0);
+	//dsdv1->NotifyInterfaceUp(0);
+	//dsdv2->NotifyInterfaceDown(0);
+	dsdv2->NotifyInterfaceUp(0);
+
 
 	Ptr<Ipv4> Ptripv4 = nc.Get(6)->GetObject<Ipv4> ();
 	Ipv4InterfaceAddress iaddr = Ptripv4->GetAddress (1,0);
 
+
+
 	rt.DeleteAllRoutesFromInterface(iaddr);
 	rt.Print(routingStream3);
 
-	//dsdv1->PrintRoutingTable(routingStream);
+	//dsdv1->PrintRoutingTable(routingStream);*/
 }
 
 static void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize, 
-                             uint32_t pktCount, Time pktInterval, Ptr<dsdv::RoutingProtocol> dsdv1 )
+                             Ipv4InterfaceContainer ifcont, Time pktInterval, NodeContainer nc )
 {
+/*
+  Ptr<MobilityModel> mobility = node->GetObject<MobilityModel> ();
+  Vector pos = mobility->GetPosition();
+  pos.x += 2000;
+  pos.y += 2000;
+  mobility->SetPosition(pos);
+  */
+
+  int pktCount = 1;
+
+	Ptr<OutputStreamWrapper> routingStream =
+		Create<OutputStreamWrapper> ("OriginalRoutes", std::ios::out);
+
+	Ptr<Ipv4> Ptripv4 = nc.Get(9)->GetObject<Ipv4> ();
+	Ptr<Ipv4RoutingProtocol> proto = Ptripv4->GetRoutingProtocol ();
+	Ptr<dsdv::RoutingProtocol> dsdv1 = DynamicCast<dsdv::RoutingProtocol> (proto);
+	dsdv::RoutingTable rt = dsdv1->m_routingTable;
+	rt.Print(routingStream);
+
+	Ipv4Address dst;
+	for (int i = 0; i < 10; i++){
+		Ptripv4 = nc.Get(i)->GetObject<Ipv4> ();
+		proto = Ptripv4->GetRoutingProtocol ();
+		dsdv1 = DynamicCast<dsdv::RoutingProtocol> (proto);
+		rt = dsdv1->m_routingTable;
+
+		dst = ifcont.GetAddress (0, 0);
+		rt.DeleteRoute(dst);
+	}
 
   if (pktCount > 0)
     {
       socket->Send (Create<Packet> (pktSize));
-      Simulator::Schedule (pktInterval, &GenerateTraffic, 
-                           socket, pktSize,pktCount-1, pktInterval, dsdv1);
+      //Simulator::Schedule (pktInterval, &GenerateTraffic, 
+        //                   socket, pktSize,pktCount-1, pktInterval, dsdv1);
     }
   else
     {
-      socket->Close ();
+      //socket->Close ();
     }
 }
 
 int main(int argc, char const *argv[]){
 
-std::cout << "May 5, 2014" << std::endl;
+std::cout << "May 6, 2014" << std::endl;
 
 
 	std::string phyMode ("DsssRate1Mbps");
@@ -151,15 +207,8 @@ std::cout << "May 5, 2014" << std::endl;
 		mobilityUsers.Install(nc.Get(i));
 
 
-	OlsrHelper olsr;
-	AodvHelper aodv;
 	DsdvHelper dsdv;
-	Ipv4StaticRoutingHelper staticRouting;
-
 	Ipv4ListRoutingHelper list;
-	//list.Add (staticRouting, 0);
-	//list.Add (olsr, 20);
-	//list.Add (aodv, 10);
 	list.Add (dsdv, 10);
 
 	InternetStackHelper internet;
@@ -172,22 +221,21 @@ std::cout << "May 5, 2014" << std::endl;
 	Ipv4InterfaceContainer ifcont = ipv4.Assign (devices);
 
 
-	Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> ("aodv.routes5", std::ios::out);
-  	
 	Ptr<Ipv4> Ptripv4 = nc.Get(4)->GetObject<Ipv4> ();
 	NS_ASSERT_MSG (Ptripv4, "Ipv4 not installed on node");
 	Ptr<Ipv4RoutingProtocol> proto = Ptripv4->GetRoutingProtocol ();
 	NS_ASSERT_MSG (proto, "Ipv4 routing not installed on node");
 	Ptr<dsdv::RoutingProtocol> dsdv1 = DynamicCast<dsdv::RoutingProtocol> (proto);
-
 	NS_ASSERT_MSG (dsdv1, "dsdv1 routing not installed on node");
+
+	Ptr<Ipv4> Ptripv4_2 = nc.Get(6)->GetObject<Ipv4> ();
+	Ptr<Ipv4RoutingProtocol> proto2 = Ptripv4_2->GetRoutingProtocol ();
+	Ptr<dsdv::RoutingProtocol> dsdv2 = DynamicCast<dsdv::RoutingProtocol> (proto2);
 
   	//dsdv.PrintRoutingTableAllAt (Seconds (70.0), routingStream);
   	//dsdv1.RoutingTable.Print( routingStream);
-//  	dsdv1->PrintRoutingTable(routingStream);
+  	//dsdv1->PrintRoutingTable(routingStream);
 
-	//dsdv::RoutingTable rt = dsdv1->m_routingTable;
-	//rt.Print(routingStream);
 
 	//
 	// Application:
@@ -211,14 +259,16 @@ std::cout << "May 5, 2014" << std::endl;
 	//Simulator::Schedule (Seconds (30.0), &GenerateTraffic, 
 	//		sources[numNodes-2], packetSize, numPackets, interPacketInterval, dsdv1);
 
-	for (int i = 1; i < numNodes; i++){
+	/*for (int i = 1; i < numNodes; i++){
 		Simulator::Schedule(Seconds(50+(i)), &GenerateTraffic,
 			sources[i-1], packetSize, 1, interPacketInterval, dsdv1);
-	}
+	}*/
 
 
-	Simulator::Schedule(Seconds(50.0), &printStuff, dsdv1,
-		routingStream, ifcont, nc);
+	//Simulator::Schedule(Seconds(50.0), &printStuff, dsdv1, dsdv2,
+	//	routingStream, ifcont, nc);
+	Simulator::Schedule(Seconds(54.0), &GenerateTraffic,
+		sources[numNodes-2], packetSize, ifcont, interPacketInterval, nc);
 
 	Simulator::Stop (Seconds (100.0));
 	Simulator::Run ();
