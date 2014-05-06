@@ -27,12 +27,21 @@ void ReceivePacket (Ptr<Socket> socket){
   NS_LOG_UNCOND ("Received one packet!");
 }
 
-static void printStuff(DsdvHelper dsdv, Ptr<OutputStreamWrapper> routingStream){
-	dsdv.PrintRoutingTableAllAt (Seconds (300.0), routingStream);
+static void printStuff(Ptr<dsdv::RoutingProtocol> dsdv1, Ptr<OutputStreamWrapper> routingStream){
+	//dsdv.PrintRoutingTableAllAt (Seconds (300.0), routingStream);
+
+	dsdv::RoutingTable rt = dsdv1->m_routingTable;
+	rt.Print(routingStream);
+
+	Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> ("aodv.routes6", std::ios::out);
+
+	rt.DeleteRout();
+
+	//dsdv1->PrintRoutingTable(routingStream);
 }
 
 static void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize, 
-                             uint32_t pktCount, Time pktInterval, AodvHelper aodv )
+                             uint32_t pktCount, Time pktInterval, Ptr<dsdv::RoutingProtocol> dsdv1 )
 {
 
 	for (int i = 1; i < 24; i++){
@@ -51,7 +60,7 @@ static void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize,
     {
       socket->Send (Create<Packet> (pktSize));
       Simulator::Schedule (pktInterval, &GenerateTraffic, 
-                           socket, pktSize,pktCount-1, pktInterval, aodv);
+                           socket, pktSize,pktCount-1, pktInterval, dsdv1);
     }
   else
     {
@@ -167,11 +176,11 @@ std::cout << "May 5, 2014" << std::endl;
 	NS_ASSERT_MSG (proto, "Ipv4 routing not installed on node");
 	Ptr<dsdv::RoutingProtocol> dsdv1 = DynamicCast<dsdv::RoutingProtocol> (proto);
 
-	NS_ASSERT_MSG (dsdv1, "Ipv4 routing not installed on node");
+	NS_ASSERT_MSG (dsdv1, "dsdv1 routing not installed on node");
 
   	//dsdv.PrintRoutingTableAllAt (Seconds (70.0), routingStream);
   	//dsdv1.RoutingTable.Print( routingStream);
-  	dsdv1->PrintRoutingTable(routingStream);
+//  	dsdv1->PrintRoutingTable(routingStream);
 
 	//dsdv::RoutingTable rt = dsdv1->m_routingTable;
 	//rt.Print(routingStream);
@@ -196,15 +205,15 @@ std::cout << "May 5, 2014" << std::endl;
 
 
 	//Simulator::Schedule (Seconds (30.0), &GenerateTraffic, 
-	//		sources[numNodes-2], packetSize, numPackets, interPacketInterval, aodv);
+	//		sources[numNodes-2], packetSize, numPackets, interPacketInterval, dsdv1);
 
 	for (int i = 1; i < numNodes; i++){
 		Simulator::Schedule(Seconds(50+(i)), &GenerateTraffic,
-			sources[i-1], packetSize, 1, interPacketInterval, aodv);
+			sources[i-1], packetSize, 1, interPacketInterval, dsdv1);
 	}
 
 
-	//Simulator::Schedule(Seconds(50.0), &printStuff, dsdv, routingStream);
+	Simulator::Schedule(Seconds(50.0), &printStuff, dsdv1, routingStream);
 
 	Simulator::Stop (Seconds (100.0));
 	Simulator::Run ();
