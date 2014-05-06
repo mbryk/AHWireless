@@ -27,15 +27,20 @@ void ReceivePacket (Ptr<Socket> socket){
   NS_LOG_UNCOND ("Received one packet!");
 }
 
-static void printStuff(Ptr<dsdv::RoutingProtocol> dsdv1, Ptr<OutputStreamWrapper> routingStream){
+static void printStuff(Ptr<dsdv::RoutingProtocol> dsdv1, Ptr<OutputStreamWrapper> routingStream, Ipv4InterfaceContainer ifcont){
 	//dsdv.PrintRoutingTableAllAt (Seconds (300.0), routingStream);
 
 	dsdv::RoutingTable rt = dsdv1->m_routingTable;
 	rt.Print(routingStream);
 
-	Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> ("aodv.routes6", std::ios::out);
+	Ptr<OutputStreamWrapper> routingStream2 = Create<OutputStreamWrapper> ("aodv.routes6", std::ios::out);
 
-	rt.DeleteRout();
+	Ipv4Address dst = ifcont.GetAddress (1, 0);
+	Ipv4Address dst2 = ifcont.GetAddress (6, 0);
+
+	rt.DeleteRoute(dst);
+	rt.DeleteRoute(dst2);
+	rt.Print(routingStream2);
 
 	//dsdv1->PrintRoutingTable(routingStream);
 }
@@ -43,18 +48,6 @@ static void printStuff(Ptr<dsdv::RoutingProtocol> dsdv1, Ptr<OutputStreamWrapper
 static void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize, 
                              uint32_t pktCount, Time pktInterval, Ptr<dsdv::RoutingProtocol> dsdv1 )
 {
-
-	for (int i = 1; i < 24; i++){
-		//Ptr<GlobalRouter> rtr = nc.Get(i)->GetObject<GlobalRouter> ();
-		//NS_LOG_UNCOND("MYDATA:");
-		//NS_LOG_UNCOND(rtr->GetRouterId());
-		//Ipv4Address ia = Ipv4Address();
-		//if (rtr)
-		//rtr->GetRouterId();
-		//ia.Print(std::cout);
-
-
-	}
 
   if (pktCount > 0)
     {
@@ -213,7 +206,7 @@ std::cout << "May 5, 2014" << std::endl;
 	}
 
 
-	Simulator::Schedule(Seconds(50.0), &printStuff, dsdv1, routingStream);
+	Simulator::Schedule(Seconds(50.0), &printStuff, dsdv1, routingStream, ifcont);
 
 	Simulator::Stop (Seconds (100.0));
 	Simulator::Run ();
