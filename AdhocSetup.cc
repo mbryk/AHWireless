@@ -17,6 +17,9 @@
 #include <vector>
 #include <string>
 
+//In dsdv-routing-protocol.cc:110, change m_periodicUpdateInterval
+//In dsdv-routing-protocol.h:122, moce m_routingTable to public
+
 NS_LOG_COMPONENT_DEFINE ("AdhocSetup");
 
 using namespace ns3;
@@ -83,25 +86,46 @@ static void printStuff(Ptr<dsdv::RoutingProtocol> dsdv1,
 	//dsdv1->PrintRoutingTable(routingStream);*/
 }
 
-static void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize, 
-                             Ipv4InterfaceContainer ifcont, Time pktInterval, NodeContainer nc )
+static void aGenerateTraffic (Ptr<Socket> socket, DsdvHelper dsdv, 
+                             Ipv4InterfaceContainer ifcont,
+                             Time pktInterval, NodeContainer nc ){
+
+int pktSize = 1000;
+
+std::cout<<"HERE"<<std::endl;
+
+	Ptr<OutputStreamWrapper> routingStream =
+		Create<OutputStreamWrapper> ("PostRoutes", std::ios::out);
+	dsdv.PrintRoutingTableAllAt (Seconds (0.0), routingStream);
+
+	socket->Send (Create<Packet> (pktSize));
+}
+
+
+static void GenerateTraffic (Ptr<Socket> socket, DsdvHelper dsdv, 
+                             Ipv4InterfaceContainer ifcont,
+                             Time pktInterval, NodeContainer nc )
 {
-/*
-  Ptr<MobilityModel> mobility = node->GetObject<MobilityModel> ();
+
+
+	Ptr<OutputStreamWrapper> routingStream =
+		Create<OutputStreamWrapper> ("OriginalRoutes", std::ios::out);
+	Ptr<OutputStreamWrapper> routingStream1 =
+		Create<OutputStreamWrapper> ("OriginalRoutes2", std::ios::out);
+
+	dsdv.PrintRoutingTableAllAt (Seconds (0.0), routingStream);
+
+  Ptr<MobilityModel> mobility = nc.Get(6)->GetObject<MobilityModel> ();
   Vector pos = mobility->GetPosition();
   pos.x += 2000;
   pos.y += 2000;
   mobility->SetPosition(pos);
-  */
+
+  dsdv.PrintRoutingTableAllAt (Seconds (0.0), routingStream1);
 
   int pktCount = 1;
 
-	Ptr<OutputStreamWrapper> routingStream =
-		Create<OutputStreamWrapper> ("OriginalRoutes", std::ios::out);
-
-	Ptr<Ipv4> Ptripv4 = nc.Get(9)->GetObject<Ipv4> ();
-	Ptr<Ipv4RoutingProtocol> proto = Ptripv4->GetRoutingProtocol ();
-	Ptr<dsdv::RoutingProtocol> dsdv1 = DynamicCast<dsdv::RoutingProtocol> (proto);
+/*
 	dsdv::RoutingTable rt = dsdv1->m_routingTable;
 	rt.Print(routingStream);
 
@@ -115,12 +139,13 @@ static void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize,
 		dst = ifcont.GetAddress (0, 0);
 		rt.DeleteRoute(dst);
 	}
+	*/
 
   if (pktCount > 0)
     {
-      socket->Send (Create<Packet> (pktSize));
-      //Simulator::Schedule (pktInterval, &GenerateTraffic, 
-        //                   socket, pktSize,pktCount-1, pktInterval, dsdv1);
+      //socket->Send (Create<Packet> (pktSize));
+      Simulator::Schedule (Seconds(6.0), &aGenerateTraffic, 
+                           socket, dsdv, ifcont, pktInterval, nc);
     }
   else
     {
@@ -268,7 +293,7 @@ std::cout << "May 6, 2014" << std::endl;
 	//Simulator::Schedule(Seconds(50.0), &printStuff, dsdv1, dsdv2,
 	//	routingStream, ifcont, nc);
 	Simulator::Schedule(Seconds(54.0), &GenerateTraffic,
-		sources[numNodes-2], packetSize, ifcont, interPacketInterval, nc);
+		sources[numNodes-2], dsdv, ifcont, interPacketInterval, nc);
 
 	Simulator::Stop (Seconds (100.0));
 	Simulator::Run ();
