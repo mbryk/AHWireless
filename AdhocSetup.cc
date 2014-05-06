@@ -16,11 +16,14 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <cmath>
 
 //In dsdv-routing-protocol.cc:110, change m_periodicUpdateInterval
 //In dsdv-routing-protocol.h:122, moce m_routingTable to public
 
 NS_LOG_COMPONENT_DEFINE ("AdhocSetup");
+
+double DIST_LIMIT_SQRT = 400;
 
 using namespace ns3;
 
@@ -87,7 +90,7 @@ static void printStuff(Ptr<dsdv::RoutingProtocol> dsdv1,
 }
 
 static void aGenerateTraffic (Ptr<Socket> socket, DsdvHelper dsdv, 
-                             Ipv4InterfaceContainer ifcont,
+                             int changed[],
                              Time pktInterval, NodeContainer nc ){
 
 int pktSize = 1000;
@@ -99,6 +102,21 @@ std::cout<<"HERE"<<std::endl;
 	dsdv.PrintRoutingTableAllAt (Seconds (0.0), routingStream);
 
 	socket->Send (Create<Packet> (pktSize));
+
+	Ptr<MobilityModel> mobility; 
+	Vector pos;
+
+	int cSize = sizeof(changed)/sizeof(int);
+	for (int i = 0; i < cSize; i++){
+		if (changed[i] = 1){
+			mobility = nc.Get(i)->GetObject<MobilityModel> ();
+			pos = mobility->GetPosition();
+
+			pos.x -= 2000;
+			pos.y -= 2000;
+			mobility->SetPosition(pos);
+		}
+	}
 }
 
 
@@ -107,23 +125,34 @@ static void GenerateTraffic (Ptr<Socket> socket, DsdvHelper dsdv,
                              Time pktInterval, NodeContainer nc )
 {
 
-
 	Ptr<OutputStreamWrapper> routingStream =
 		Create<OutputStreamWrapper> ("OriginalRoutes", std::ios::out);
-	Ptr<OutputStreamWrapper> routingStream1 =
-		Create<OutputStreamWrapper> ("OriginalRoutes2", std::ios::out);
-
 	dsdv.PrintRoutingTableAllAt (Seconds (0.0), routingStream);
 
-  Ptr<MobilityModel> mobility = nc.Get(6)->GetObject<MobilityModel> ();
-  Vector pos = mobility->GetPosition();
-  pos.x += 2000;
-  pos.y += 2000;
-  mobility->SetPosition(pos);
 
-  dsdv.PrintRoutingTableAllAt (Seconds (0.0), routingStream1);
+	Ptr<MobilityModel> mobility; 
+	Vector pos;
 
-  int pktCount = 1;
+	int changed[10];// = malloc( (int) nc.GetN() * sizeof(int));
+	for (int i = 0; i < nc.GetN(); i++)
+		changed[i] = 0;	
+
+	for (int i = 1; i < nc.GetN(); i++){
+		mobility = nc.Get(i)->GetObject<MobilityModel> ();
+		pos = mobility->GetPosition();
+
+		if (pow(pos.x, 2) + pow(pos.y, 2) > pow(DIST_LIMIT_SQRT, 2)) {
+			std::cout << "Node # " << i << " is outside of region." << std::endl;
+
+			changed[i] = 1;
+
+			pos.x += 2000;
+			pos.y += 2000;
+			mobility->SetPosition(pos);
+		}
+	}
+
+	int pktCount = 1;
 
 /*
 	dsdv::RoutingTable rt = dsdv1->m_routingTable;
@@ -141,16 +170,10 @@ static void GenerateTraffic (Ptr<Socket> socket, DsdvHelper dsdv,
 	}
 	*/
 
-  if (pktCount > 0)
-    {
-      //socket->Send (Create<Packet> (pktSize));
-      Simulator::Schedule (Seconds(6.0), &aGenerateTraffic, 
-                           socket, dsdv, ifcont, pktInterval, nc);
-    }
-  else
-    {
-      //socket->Close ();
-    }
+
+	Simulator::Schedule (Seconds(20.0), &aGenerateTraffic, 
+	                   socket, dsdv, changed, pktInterval, nc);
+
 }
 
 int main(int argc, char const *argv[]){
@@ -165,7 +188,7 @@ std::cout << "May 6, 2014" << std::endl;
 	int numNodes = 10;
 	uint32_t sourceNode = numNodes-1;
 	uint32_t sinkNode = 0; //sink node is MBS node 0
-	double distance = 50; // m
+	double distance = 30; // m
 
 
 	NodeContainer nc;
@@ -213,7 +236,7 @@ std::cout << "May 6, 2014" << std::endl;
 
 	MobilityHelper mobilityMBS;
 	Ptr<ListPositionAllocator> positionAlloc = CreateObject <ListPositionAllocator>();
-	positionAlloc->Add(Vector(0, 0, 75)); //node 0 should be center and 75m high
+	positionAlloc->Add(Vector(0, 0, 5)); //node 0 should be center and 75m high
 	mobilityMBS.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
 	mobilityMBS.Install(nc.Get(0));
 
@@ -280,6 +303,10 @@ std::cout << "May 6, 2014" << std::endl;
 		sources[i-1]->Connect (remote);
 	}
 
+	AsciiTraceHelper ascii;
+	wifiPhy.EnableAsciiAll (ascii.CreateFileStream ("wifi-simple-adhoc-grid.tr"));
+	wifiPhy.EnablePcap ("wifi-simple-adhoc-grid", devices);
+
 
 	//Simulator::Schedule (Seconds (30.0), &GenerateTraffic, 
 	//		sources[numNodes-2], packetSize, numPackets, interPacketInterval, dsdv1);
@@ -295,7 +322,7 @@ std::cout << "May 6, 2014" << std::endl;
 	Simulator::Schedule(Seconds(54.0), &GenerateTraffic,
 		sources[numNodes-2], dsdv, ifcont, interPacketInterval, nc);
 
-	Simulator::Stop (Seconds (100.0));
+	Simulator::Stop (Seconds (150.0));
 	Simulator::Run ();
 	Simulator::Destroy ();
 
