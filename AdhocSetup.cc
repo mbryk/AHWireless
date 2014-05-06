@@ -13,6 +13,7 @@
 #include "ns3/dsdv-routing-protocol.h"
 #include "ns3/ipv4-static-routing-helper.h"
 #include "ns3/ipv4-list-routing-helper.h"
+#include "ns3/ipv4-interface-address.h"
 
 #include <iostream>
 #include <fstream>
@@ -27,13 +28,17 @@ void ReceivePacket (Ptr<Socket> socket){
   NS_LOG_UNCOND ("Received one packet!");
 }
 
-static void printStuff(Ptr<dsdv::RoutingProtocol> dsdv1, Ptr<OutputStreamWrapper> routingStream, Ipv4InterfaceContainer ifcont){
+static void printStuff(Ptr<dsdv::RoutingProtocol> dsdv1,
+	Ptr<OutputStreamWrapper> routingStream,
+	Ipv4InterfaceContainer ifcont,
+	NodeContainer nc){
 	//dsdv.PrintRoutingTableAllAt (Seconds (300.0), routingStream);
 
 	dsdv::RoutingTable rt = dsdv1->m_routingTable;
 	rt.Print(routingStream);
 
 	Ptr<OutputStreamWrapper> routingStream2 = Create<OutputStreamWrapper> ("aodv.routes6", std::ios::out);
+	Ptr<OutputStreamWrapper> routingStream3 = Create<OutputStreamWrapper> ("aodv.routes7", std::ios::out);
 
 	Ipv4Address dst = ifcont.GetAddress (1, 0);
 	Ipv4Address dst2 = ifcont.GetAddress (6, 0);
@@ -41,6 +46,12 @@ static void printStuff(Ptr<dsdv::RoutingProtocol> dsdv1, Ptr<OutputStreamWrapper
 	rt.DeleteRoute(dst);
 	rt.DeleteRoute(dst2);
 	rt.Print(routingStream2);
+
+	Ptr<Ipv4> Ptripv4 = nc.Get(6)->GetObject<Ipv4> ();
+	Ipv4InterfaceAddress iaddr = Ptripv4->GetAddress (1,0);
+
+	rt.DeleteAllRoutesFromInterface(iaddr);
+	rt.Print(routingStream3);
 
 	//dsdv1->PrintRoutingTable(routingStream);
 }
@@ -206,7 +217,8 @@ std::cout << "May 5, 2014" << std::endl;
 	}
 
 
-	Simulator::Schedule(Seconds(50.0), &printStuff, dsdv1, routingStream, ifcont);
+	Simulator::Schedule(Seconds(50.0), &printStuff, dsdv1,
+		routingStream, ifcont, nc);
 
 	Simulator::Stop (Seconds (100.0));
 	Simulator::Run ();
