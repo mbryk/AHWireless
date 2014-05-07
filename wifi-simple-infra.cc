@@ -70,12 +70,33 @@ using namespace ns3;
 
 void ReceivePacket (Ptr<Socket> socket)
 {
+
   NS_LOG_UNCOND ("Received one packet!");
 }
 
 static void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize, 
-                             uint32_t pktCount, Time pktInterval )
+                             uint32_t pktCount, Time pktInterval  )
 {
+/*  std::cout<<socket[0]->GetNode()->GetId()<<endl;
+  std::cout<<socket[1]->GetNode()->GetId()<<endl;
+  */
+  if (pktCount > 0)
+    {
+      socket->Send (Create<Packet> (pktSize));
+      Simulator::Schedule (pktInterval, &GenerateTraffic, 
+                           socket, pktSize,pktCount-1, pktInterval);
+    }
+  else
+    {
+      socket->Close ();
+    }
+}
+static void GenerateTraffic2 (Ptr<Socket> socket, uint32_t pktSize, 
+                             uint32_t pktCount, Time pktInterval  )
+{
+/*  std::cout<<socket[0]->GetNode()->GetId()<<endl;
+  std::cout<<socket[1]->GetNode()->GetId()<<endl;
+  */
   if (pktCount > 0)
     {
       socket->Send (Create<Packet> (pktSize));
@@ -88,13 +109,13 @@ static void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize,
     }
 }
 
-
 int main (int argc, char *argv[])
 {
   std::string phyMode ("DsssRate1Mbps");
-  uint32_t packetSize = 1000; // bytes
+  int sourceNum = 2;
+  uint32_t packetSize = 10; // bytes
   uint32_t numPackets = 10;
-  double interval = 1.0; // seconds
+  double interval = .5; // seconds
   bool verbose = false;
 
   CommandLine cmd;
@@ -121,8 +142,8 @@ int main (int argc, char *argv[])
   NodeContainer sources;
   NodeContainer MBS;
   
-  sources.Create(2);
   MBS.Create(1);
+  sources.Create(sourceNum);
   NodeContainer c(MBS,sources);
 
   // The below set of helpers will help us to put together the wifi NICs we want
@@ -145,7 +166,7 @@ int main (int argc, char *argv[])
   // ns-3 supports RadioTap and Prism tracing extensions for 802.11b
   wifiPhy.SetPcapDataLinkType (YansWifiPhyHelper::DLT_IEEE802_11); 
 
-  double pwr = 16.0206;
+  double pwr = 106.0206;
   wifiPhy.Set ("TxPowerStart", DoubleValue(pwr));
   wifiPhy.Set ("TxPowerEnd", DoubleValue(pwr));
   wifiPhy.Set ("TxPowerLevels", UintegerValue(1));
@@ -184,7 +205,9 @@ int main (int argc, char *argv[])
 
   MobilityHelper mobilityUsers;
   Ptr<ListPositionAllocator> positionAlloc2 = CreateObject<ListPositionAllocator> ();
-  positionAlloc2->Add (Vector (5.0, 0.0, 0.0));
+
+  //for sourceNum
+  positionAlloc2->Add (Vector (5.985, 0.0, 0.0));
   positionAlloc2->Add (Vector (-5.0, 3.0, 0.0));
   mobilityUsers.SetPositionAllocator (positionAlloc2);
   mobilityUsers.SetMobilityModel("ns3::ConstantPositionMobilityModel");
@@ -204,10 +227,12 @@ int main (int argc, char *argv[])
   recvSink->Bind (local);
   recvSink->SetRecvCallback (MakeCallback (&ReceivePacket));
 
-  Ptr<Socket> sockets[2];
+  Ptr<Socket> sockets[sourceNum];
+  // for sourceNum
   sockets[0] = Socket::CreateSocket (c.Get (1), tid);
   sockets[1] = Socket::CreateSocket (c.Get (2), tid);
-  InetSocketAddress remote = InetSocketAddress (Ipv4Address ("255.255.255.255"), 80);
+  InetSocketAddress remote = InetSocketAddress (i.GetAddress (0), 80);
+  //InetSocketAddress remote = InetSocketAddress (Ipv4Address ("255.255.255.255"), 80);
   sockets[0]->SetAllowBroadcast (true);
   sockets[1]->SetAllowBroadcast (true);
   sockets[0]->Connect (remote);
@@ -219,10 +244,21 @@ int main (int argc, char *argv[])
   // Output what we are doing
   NS_LOG_UNCOND ("Testing " << numPackets  << " packets sent");
 
-  Simulator::ScheduleWithContext (sockets[0]->GetNode()->GetId(),Seconds (1.0), &GenerateTraffic, 
+  // DEBUG PRINTS
+  //for(i=0;i<sourceNum;i++){}
+  std::cout<<recvSink->GetNode()->GetId()<<": ";
+  i.GetAddress(0).Print(std::cout);
+
+  std::cout<<std::endl<<sockets[0]->GetNode()->GetId()<<": ";
+  i.GetAddress(1).Print(std::cout);
+  std::cout<<std::endl<<sockets[1]->GetNode()->GetId()<<": ";
+  i.GetAddress(2).Print(std::cout);
+  std::cout<<std::endl;
+
+  Simulator::Schedule (Seconds (1.0), &GenerateTraffic, 
                                   sockets[0], packetSize, numPackets, interPacketInterval);
 
-  Simulator::ScheduleWithContext (sockets[1]->GetNode()->GetId(),Seconds (1.0), &GenerateTraffic, 
+  Simulator::Schedule (Seconds (10.0), &GenerateTraffic2, 
                                   sockets[1], packetSize, numPackets, interPacketInterval);
 
   Simulator::Stop (Seconds (30.0));
