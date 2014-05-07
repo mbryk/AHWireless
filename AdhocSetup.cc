@@ -29,6 +29,11 @@ int totalAttempted, totalSuccess;
 
 using namespace ns3;
 
+static void GenerateTraffic (Ptr<Socket> sockets[], int numAttempts,//DsdvHelper dsdv, 
+                             NodeContainer nc );
+
+
+
 void ReceivePacket (Ptr<Socket> socket){
   NS_LOG_UNCOND ("Received one packet!");
   totalSuccess++;
@@ -39,7 +44,9 @@ static void sendPacket (Ptr<Socket> socket){
 	socket -> Send(Create<Packet> (pktSize));
 }
 
-static void moveBack (std::vector<int> changed, NodeContainer nc){
+static void moveBack (std::vector<int> changed, NodeContainer nc, 
+	int numAttempts, Ptr<Socket> sources[]){
+	
 	Ptr<MobilityModel> mobility; 
 	Vector pos;
 
@@ -53,25 +60,25 @@ static void moveBack (std::vector<int> changed, NodeContainer nc){
 			mobility->SetPosition(pos);
 		}
 	}
+
+	numAttempts--;
+	if (numAttempts > 0)
+		Simulator::Schedule(Seconds(7.0), &GenerateTraffic,
+			sources, numAttempts, nc);
 }
 
-static void aGenerateTraffic (Ptr<Socket> sockets[], DsdvHelper dsdv, 
+static void aGenerateTraffic (Ptr<Socket> sockets[], int numAttempts, 
                              std::vector<int> changed,
-                             int numPackets, NodeContainer nc ){
+                             NodeContainer nc ){
 
 std::cout<<"HERE"<<std::endl;
 
-	Ptr<OutputStreamWrapper> routingStream =
+	/*Ptr<OutputStreamWrapper> routingStream =
 		Create<OutputStreamWrapper> ("PostRoutes", std::ios::out);
-	dsdv.PrintRoutingTableAllAt (Seconds (0.0), routingStream);
+	dsdv.PrintRoutingTableAllAt (Seconds (0.0), routingStream);*/
 
 	Ptr<MobilityModel> mobility; 
 	Vector pos;
-
-	for (int i = 0; i < nc.GetN(); i++){
-		std::cout << i << ": " << changed[i];
-	}
-	std::cout << std::endl;
 
 	for (int i =1 ; i < nc.GetN(); i++){
 		if (changed[i] == 0){
@@ -86,19 +93,18 @@ std::cout<<"HERE"<<std::endl;
 		}
 	}
 
-	Simulator::Schedule (Seconds(7.0), &moveBack, changed, nc);
+	Simulator::Schedule (Seconds(7.0), &moveBack, changed, nc, numAttempts, sockets);
 
 }
 
 
-static void GenerateTraffic (Ptr<Socket> sockets[], DsdvHelper dsdv, 
-                             int numPackets,
-                             Time pktInterval, NodeContainer nc )
+static void GenerateTraffic (Ptr<Socket> sockets[], int numAttempts,//DsdvHelper dsdv, 
+                             NodeContainer nc )
 {
 
-	Ptr<OutputStreamWrapper> routingStream =
+	/*Ptr<OutputStreamWrapper> routingStream =
 		Create<OutputStreamWrapper> ("OriginalRoutes", std::ios::out);
-	dsdv.PrintRoutingTableAllAt (Seconds (0.0), routingStream);
+	dsdv.PrintRoutingTableAllAt (Seconds (0.0), routingStream);*/
 
 
 	Ptr<MobilityModel> mobility; 
@@ -127,13 +133,8 @@ static void GenerateTraffic (Ptr<Socket> sockets[], DsdvHelper dsdv,
 		}
 	}
 
-	for (int i = 0; i < nc.GetN(); i++){
-		std::cout << i << ": " << changed[i];
-	}
-	std::cout << std::endl;
-
 	Simulator::Schedule (Seconds(10.0), &aGenerateTraffic, 
-	                   sockets, dsdv, changed, numPackets, nc);
+	                   sockets, numAttempts, changed, nc);
 
 }
 
@@ -146,7 +147,7 @@ std::cout << "May 6, 2014" << std::endl;
 	int packetSize = 1000; // bytes
 	int numPackets = 1000;
 	Time interPacketInterval = Seconds (1.0);
-	int numNodes = 25;
+	int numNodes = 51;
 	uint32_t sourceNode = numNodes-1;
 	uint32_t sinkNode = 0; //sink node is MBS node 0
 	double distance = 40; // m
@@ -203,14 +204,17 @@ std::cout << "May 6, 2014" << std::endl;
 	mobilityMBS.Install(nc.Get(0));
 
 	MobilityHelper mobilityUsers;
-	mobilityUsers.SetPositionAllocator ("ns3::GridPositionAllocator",
+	/*mobilityUsers.SetPositionAllocator ("ns3::GridPositionAllocator",
 	                             "MinX", DoubleValue (-150.0),
 	                             "MinY", DoubleValue (-150.0),
 	                             "DeltaX", DoubleValue (distance),
 	                             "DeltaY", DoubleValue (distance),
 	                             "GridWidth", UintegerValue (5),
-	                             "LayoutType", StringValue ("RowFirst"));
+	                             "LayoutType", StringValue ("RowFirst"));*/
 	//mobilityUsers.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+	mobilityUsers.SetPositionAllocator ("ns3::RandomRectanglePositionAllocator",
+										"X", StringValue("ns3::UniformRandomVariable[Min=-1000|Max=1000]"),
+										"Y", StringValue("ns3::UniformRandomVariable[Min=-1000|Max=1000]") );
 	mobilityUsers.SetMobilityModel("ns3::RandomWalk2dMobilityModel",
 		"Bounds", RectangleValue(Rectangle(-5000, 5000, -5000, 5000)));
 	for (int i = 1; i < numNodes; i++)
@@ -238,7 +242,7 @@ std::cout << "May 6, 2014" << std::endl;
 	recvSink->Bind (local);
 	recvSink->SetRecvCallback (MakeCallback (&ReceivePacket));
 
-	Ptr<Socket> sources[25];
+	Ptr<Socket> sources[51];
 	InetSocketAddress remote = InetSocketAddress (ifcont.GetAddress (sinkNode, 0), 80);
 	for (int i = 1; i < numNodes; i++){
 		//Ptr<Socket> source = Socket::CreateSocket (nc.Get (sourceNode), tid);
@@ -246,13 +250,13 @@ std::cout << "May 6, 2014" << std::endl;
 		sources[i-1]->Connect (remote);
 	}
 
-	AsciiTraceHelper ascii;
-	wifiPhy.EnableAsciiAll (ascii.CreateFileStream ("wifi-simple-adhoc-grid.tr"));
-	wifiPhy.EnablePcap ("wifi-simple-adhoc-grid", devices);
+	//AsciiTraceHelper ascii;
+	//wifiPhy.EnableAsciiAll (ascii.CreateFileStream ("wifi-simple-adhoc-grid.tr"));
+	//wifiPhy.EnablePcap ("wifi-simple-adhoc-grid", devices);
 
 
 	Simulator::Schedule(Seconds(30.0), &GenerateTraffic,
-		sources, dsdv, numPackets, interPacketInterval, nc);
+		sources, 2, nc);
 
 	Simulator::Stop (Seconds (150.0));
 	Simulator::Run ();
