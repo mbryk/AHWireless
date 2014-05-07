@@ -88,12 +88,12 @@ std::cout<<"HERE"<<std::endl;
 			std::cout << "Node " << i << " is at: x: " << pos.x << "; y: " <<pos.y << std::endl;
 
 			//sockets[i-1]->Send (Create<Packet> (pktSize));
-			Simulator::Schedule (Seconds(.25*i), &sendPacket, sockets[i-1]);
+			Simulator::Schedule (Seconds(.2*i), &sendPacket, sockets[i-1]);
 			totalAttempted++;
 		}
 	}
 
-	Simulator::Schedule (Seconds(7.0), &moveBack, changed, nc, numAttempts, sockets);
+	Simulator::Schedule (Seconds(20.0), &moveBack, changed, nc, numAttempts, sockets);
 
 }
 
@@ -138,7 +138,7 @@ static void GenerateTraffic (Ptr<Socket> sockets[], int numAttempts,//DsdvHelper
 
 }
 
-int main(int argc, char const *argv[]){
+int main(int argc, char *argv[]){
 
 std::cout << "May 6, 2014" << std::endl;
 
@@ -147,11 +147,20 @@ std::cout << "May 6, 2014" << std::endl;
 	int packetSize = 1000; // bytes
 	int numPackets = 1000;
 	Time interPacketInterval = Seconds (1.0);
-	int numNodes = 51;
+	int numNodes = 101;
 	uint32_t sourceNode = numNodes-1;
 	uint32_t sinkNode = 0; //sink node is MBS node 0
 	double distance = 40; // m
+	int pwr = 16;
 
+	CommandLine cmd;
+
+	cmd.AddValue("pwr", "Tx Power", pwr);
+	cmd.AddValue("DIST_LIMIT_SQRT", "Circle limits", DIST_LIMIT_SQRT);
+	
+	cmd.Parse (argc, argv);
+
+	std::cout << "Power: " << pwr << ";  DIST_LIMIT_SQRT: " << DIST_LIMIT_SQRT <<std::endl;
 
 	NodeContainer nc;
 	nc.Create(numNodes);
@@ -177,7 +186,6 @@ std::cout << "May 6, 2014" << std::endl;
 	wifiPhy.SetPcapDataLinkType (YansWifiPhyHelper::DLT_IEEE802_11);
 	
 	//all parameters below are set to the defaults:
-	int pwr = 16.0206;
 	wifiPhy.Set ("TxPowerStart", DoubleValue(pwr));
 	wifiPhy.Set ("TxPowerEnd", DoubleValue(pwr));
 	wifiPhy.Set ("TxPowerLevels", UintegerValue(1));
@@ -199,7 +207,7 @@ std::cout << "May 6, 2014" << std::endl;
 
 	MobilityHelper mobilityMBS;
 	Ptr<ListPositionAllocator> positionAlloc = CreateObject <ListPositionAllocator>();
-	positionAlloc->Add(Vector(0, 0, 5)); //node 0 should be center and 75m high
+	positionAlloc->Add(Vector(0, 0, 5)); //node 0 should be center and 5m high
 	mobilityMBS.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
 	mobilityMBS.Install(nc.Get(0));
 
@@ -213,13 +221,14 @@ std::cout << "May 6, 2014" << std::endl;
 	                             "LayoutType", StringValue ("RowFirst"));*/
 	//mobilityUsers.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
 	mobilityUsers.SetPositionAllocator ("ns3::RandomRectanglePositionAllocator",
-										"X", StringValue("ns3::UniformRandomVariable[Min=-1000|Max=1000]"),
-										"Y", StringValue("ns3::UniformRandomVariable[Min=-1000|Max=1000]") );
+					"X", StringValue("ns3::UniformRandomVariable[Min=-150|Max=150]"),
+					"Y", StringValue("ns3::UniformRandomVariable[Min=-150|Max=150]") );
 	mobilityUsers.SetMobilityModel("ns3::RandomWalk2dMobilityModel",
 		"Bounds", RectangleValue(Rectangle(-5000, 5000, -5000, 5000)));
 	for (int i = 1; i < numNodes; i++)
 		mobilityUsers.Install(nc.Get(i));
 
+std::cout << "Positions Assigned" <<std::endl;
 
 	DsdvHelper dsdv;
 	InternetStackHelper internet;
@@ -242,23 +251,23 @@ std::cout << "May 6, 2014" << std::endl;
 	recvSink->Bind (local);
 	recvSink->SetRecvCallback (MakeCallback (&ReceivePacket));
 
-	Ptr<Socket> sources[51];
+	Ptr<Socket> sources[251];
 	InetSocketAddress remote = InetSocketAddress (ifcont.GetAddress (sinkNode, 0), 80);
 	for (int i = 1; i < numNodes; i++){
 		//Ptr<Socket> source = Socket::CreateSocket (nc.Get (sourceNode), tid);
 		sources[i-1] = Socket::CreateSocket (nc.Get (i), tid);
 		sources[i-1]->Connect (remote);
 	}
-
+std::cout << "Sockets Assigned" <<std::endl;
 	//AsciiTraceHelper ascii;
 	//wifiPhy.EnableAsciiAll (ascii.CreateFileStream ("wifi-simple-adhoc-grid.tr"));
 	//wifiPhy.EnablePcap ("wifi-simple-adhoc-grid", devices);
 
 
 	Simulator::Schedule(Seconds(30.0), &GenerateTraffic,
-		sources, 2, nc);
+		sources, 1, nc);
 
-	Simulator::Stop (Seconds (150.0));
+	Simulator::Stop (Seconds (100.0));
 	Simulator::Run ();
 	Simulator::Destroy ();
 
