@@ -17,6 +17,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <cstdlib>
 
 //In dsdv-routing-protocol.cc:110, change m_periodicUpdateInterval to .25
 //In dsdv-routing-protocol.h:122, moce m_routingTable to public
@@ -162,8 +163,10 @@ std::cout << "May 6, 2014" << std::endl;
 
 	std::cout << "Power: " << pwr << ";  DIST_LIMIT_SQRT: " << DIST_LIMIT_SQRT <<std::endl;
 
-	NodeContainer nc;
-	nc.Create(numNodes);
+	NodeContainer ncUsers,ncMBS;
+	ncMBS.Create(1);
+	ncUsers.Create(numNodes-1);
+	NodeContainer nc(ncMBS,ncUsers);
 
 	WifiHelper wifi;
 	//wifi.EnableLogComponents();
@@ -212,21 +215,20 @@ std::cout << "May 6, 2014" << std::endl;
 	mobilityMBS.Install(nc.Get(0));
 
 	MobilityHelper mobilityUsers;
-	/*mobilityUsers.SetPositionAllocator ("ns3::GridPositionAllocator",
-	                             "MinX", DoubleValue (-150.0),
-	                             "MinY", DoubleValue (-150.0),
-	                             "DeltaX", DoubleValue (distance),
-	                             "DeltaY", DoubleValue (distance),
-	                             "GridWidth", UintegerValue (5),
-	                             "LayoutType", StringValue ("RowFirst"));*/
-	//mobilityUsers.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
-	mobilityUsers.SetPositionAllocator ("ns3::RandomRectanglePositionAllocator",
-					"X", StringValue("ns3::UniformRandomVariable[Min=-20|Max=20]"),
-					"Y", StringValue("ns3::UniformRandomVariable[Min=-20|Max=20]") );
-	mobilityUsers.SetMobilityModel("ns3::RandomWalk2dMobilityModel",
-		"Bounds", RectangleValue(Rectangle(-5000, 5000, -5000, 5000)));
+	/*
 	for (int i = 1; i < numNodes; i++)
 		mobilityUsers.Install(nc.Get(i));
+		*/
+	Ptr<ListPositionAllocator> uPositionAlloc = CreateObject <ListPositionAllocator>();
+	int vpos[3]; int pj;
+	for(int i=1;i<numNodes;i++){
+		for(pj=0;pj<3;pj++) vpos[pj] = rand()%40-20;
+		uPositionAlloc->Add(Vector(vpos[0], vpos[1], vpos[2])); //node 0 should be center and 5m high
+	}
+	mobilityUsers.SetPositionAllocator(uPositionAlloc);
+	mobilityUsers.SetMobilityModel("ns3::RandomWalk2dMobilityModel",
+		"Bounds", RectangleValue(Rectangle(-5000, 5000, -5000, 5000)));
+	mobilityUsers.Install(ncUsers);
 
 //std::cout << "Positions Assigned" <<std::endl;
 
