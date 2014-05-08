@@ -35,7 +35,7 @@ static void GenerateTraffic (Ptr<Socket> sockets[], int numAttempts,//DsdvHelper
 
 
 void ReceivePacket (Ptr<Socket> socket){
-  NS_LOG_UNCOND ("Received one packet!");
+  //NS_LOG_UNCOND ("Received one packet!");
   totalSuccess++;
 }
 
@@ -85,7 +85,7 @@ std::cout<<"HERE"<<std::endl;
 			mobility = nc.Get(i)->GetObject<MobilityModel> ();
 			pos = mobility->GetPosition();
 
-			std::cout << "Node " << i << " is at: x: " << pos.x << "; y: " <<pos.y << std::endl;
+			//std::cout << "Node " << i << " is at: x: " << pos.x << "; y: " <<pos.y << std::endl;
 
 			//sockets[i-1]->Send (Create<Packet> (pktSize));
 			Simulator::Schedule (Seconds(.2*i), &sendPacket, sockets[i-1]);
@@ -123,7 +123,7 @@ static void GenerateTraffic (Ptr<Socket> sockets[], int numAttempts,//DsdvHelper
 		pos = mobility->GetPosition();
 
 		if (pow(pos.x, 2) + pow(pos.y, 2) > pow(DIST_LIMIT_SQRT, 2)) {
-			std::cout << "Node # " << i << " is outside of region." << std::endl;
+			//std::cout << "Node # " << i << " is outside of region." << std::endl;
 
 			changed[i] = 1;
 
@@ -147,11 +147,11 @@ std::cout << "May 6, 2014" << std::endl;
 	int packetSize = 1000; // bytes
 	int numPackets = 1000;
 	Time interPacketInterval = Seconds (1.0);
-	int numNodes = 101;
+	int numNodes = 16;
 	uint32_t sourceNode = numNodes-1;
 	uint32_t sinkNode = 0; //sink node is MBS node 0
 	double distance = 40; // m
-	int pwr = 16;
+	double pwr = 16;
 
 	CommandLine cmd;
 
@@ -189,10 +189,10 @@ std::cout << "May 6, 2014" << std::endl;
 	wifiPhy.Set ("TxPowerStart", DoubleValue(pwr));
 	wifiPhy.Set ("TxPowerEnd", DoubleValue(pwr));
 	wifiPhy.Set ("TxPowerLevels", UintegerValue(1));
-	wifiPhy.Set ("TxGain", DoubleValue(1));
-	wifiPhy.Set ("RxGain", DoubleValue(1));
-	wifiPhy.Set ("EnergyDetectionThreshold", DoubleValue(-96));
-	wifiPhy.Set ("CcaMode1Threshold", DoubleValue(-99));
+	wifiPhy.Set ("TxGain", DoubleValue(0));
+	wifiPhy.Set ("RxGain", DoubleValue(0));
+	wifiPhy.Set ("EnergyDetectionThreshold", DoubleValue(-80));
+	wifiPhy.Set ("CcaMode1Threshold", DoubleValue(-80));
 
 	wifiPhy.SetChannel (wifiChannel.Create ());
 
@@ -221,14 +221,14 @@ std::cout << "May 6, 2014" << std::endl;
 	                             "LayoutType", StringValue ("RowFirst"));*/
 	//mobilityUsers.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
 	mobilityUsers.SetPositionAllocator ("ns3::RandomRectanglePositionAllocator",
-					"X", StringValue("ns3::UniformRandomVariable[Min=-150|Max=150]"),
-					"Y", StringValue("ns3::UniformRandomVariable[Min=-150|Max=150]") );
+					"X", StringValue("ns3::UniformRandomVariable[Min=-20|Max=20]"),
+					"Y", StringValue("ns3::UniformRandomVariable[Min=-20|Max=20]") );
 	mobilityUsers.SetMobilityModel("ns3::RandomWalk2dMobilityModel",
 		"Bounds", RectangleValue(Rectangle(-5000, 5000, -5000, 5000)));
 	for (int i = 1; i < numNodes; i++)
 		mobilityUsers.Install(nc.Get(i));
 
-std::cout << "Positions Assigned" <<std::endl;
+//std::cout << "Positions Assigned" <<std::endl;
 
 	DsdvHelper dsdv;
 	InternetStackHelper internet;
@@ -258,7 +258,7 @@ std::cout << "Positions Assigned" <<std::endl;
 		sources[i-1] = Socket::CreateSocket (nc.Get (i), tid);
 		sources[i-1]->Connect (remote);
 	}
-std::cout << "Sockets Assigned" <<std::endl;
+//std::cout << "Sockets Assigned" <<std::endl;
 	//AsciiTraceHelper ascii;
 	//wifiPhy.EnableAsciiAll (ascii.CreateFileStream ("wifi-simple-adhoc-grid.tr"));
 	//wifiPhy.EnablePcap ("wifi-simple-adhoc-grid", devices);

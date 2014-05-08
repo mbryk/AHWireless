@@ -64,9 +64,9 @@ static void GenerateTraffic (Ptr<Socket> socket[],Time pktInterval, int pktCount
 }
 
 int main(int argc, char *argv[]){
-	double pwr = 10.0;
-	int pktCount = 5;
-	numNodes = 200;
+	double pwr = 1;
+	int pktCount = 1;
+	numNodes = 50;
 
 	CommandLine cmd;
 	cmd.AddValue ("power", "Power", pwr);
@@ -106,10 +106,10 @@ int main(int argc, char *argv[]){
 	wifiPhy.Set ("TxPowerStart", DoubleValue(pwr));
 	wifiPhy.Set ("TxPowerEnd", DoubleValue(pwr));
 	wifiPhy.Set ("TxPowerLevels", UintegerValue(1));
-	wifiPhy.Set ("TxGain", DoubleValue(1));
-	wifiPhy.Set ("RxGain", DoubleValue(1));
-	wifiPhy.Set ("EnergyDetectionThreshold", DoubleValue(-96));
-	wifiPhy.Set ("CcaMode1Threshold", DoubleValue(-99));
+	wifiPhy.Set ("TxGain", DoubleValue(0));
+	wifiPhy.Set ("RxGain", DoubleValue(0));
+	wifiPhy.Set ("EnergyDetectionThreshold", DoubleValue(-80));
+	wifiPhy.Set ("CcaMode1Threshold", DoubleValue(-80));
 
 	wifiPhy.SetChannel (wifiChannel.Create ());
 
@@ -120,15 +120,15 @@ int main(int argc, char *argv[]){
 
 	MobilityHelper mobilityMBS;
 	Ptr<ListPositionAllocator> positionAlloc = CreateObject <ListPositionAllocator>();
-	positionAlloc->Add(Vector(outOfBounds, outOfBounds, 5)); //node 0 should be center and 75m high
+	positionAlloc->Add(Vector(0, 0, 5)); //node 0 should be center and 75m high
 	mobilityMBS.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
 	mobilityMBS.Install(MBS);
 
 	MobilityHelper mobilityUsers;
 	  ObjectFactory pos;
 	  pos.SetTypeId ("ns3::RandomRectanglePositionAllocator");
-	  pos.Set ("X", StringValue ("ns3::UniformRandomVariable[Min=-200.0|Max=200.0]"));
-	  pos.Set ("Y", StringValue ("ns3::UniformRandomVariable[Min=-200.0|Max=200.0]"));
+	  pos.Set ("X", StringValue ("ns3::UniformRandomVariable[Min=-20.0|Max=20.0]"));
+	  pos.Set ("Y", StringValue ("ns3::UniformRandomVariable[Min=-20.0|Max=20.0]"));
 
 	  Ptr <PositionAllocator> taPositionAlloc = pos.Create ()->GetObject <PositionAllocator> ();
 
